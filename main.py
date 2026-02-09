@@ -3,66 +3,69 @@ from flask import Flask, request, jsonify, render_template_string, session, redi
 import os
 
 app = Flask(__name__)
-app.secret_key = "smile_fin_premium_key_99" # Security for login sessions
+app.secret_key = "smile_pro_google_auth_key"
 
-# Demo User Details
-USERS = {"test@example.com": "password123"}
-
-# --- FULL BRANDED INTERFACE (Login + Dashboard) ---
+# --- BRANDED INTERFACE WITH GOOGLE LOGIN ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
-    <title>Smile AI - Professional Workspace</title>
+    <title>Smile AI - Google Workspace</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         :root { --vh: 1vh; }
         body { background: #030508; color: #e5e7eb; font-family: 'Inter', sans-serif; height: calc(var(--vh) * 100); overflow: hidden; }
-        .sidebar { background: #0d1117; width: 260px; border-right: 1px solid #1a1a1a; transition: 0.3s; }
+        .sidebar { background: #0d1117; width: 260px; border-right: 1px solid #1a1a1a; transition: transform 0.3s ease; }
         .ai-glow { text-shadow: 0 0 10px #00f2fe; color: #00f2fe; }
-        .glass-card { background: rgba(22, 27, 34, 0.8); border: 1px solid #30363d; border-radius: 15px; }
-        .input-container { background: #161b22; border: 1px solid #30363d; border-radius: 24px; padding: 8px 16px; width: 90%; max-width: 800px; margin: 0 auto 20px auto; }
-        @media (max-width: 768px) { .sidebar { display: none; } }
+        .input-container { background: #161b22; border: 1px solid #30363d; border-radius: 28px; padding: 10px 20px; width: 92%; max-width: 800px; margin: 0 auto 20px auto; }
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; height: 100%; z-index: 50; transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+        }
     </style>
 </head>
 <body class="flex flex-col md:flex-row">
 
     {% if not logged_in %}
-    <div class="flex-1 flex flex-col justify-center items-center p-6">
-        <h1 class="text-4xl font-black ai-glow mb-2">SMILE <span class="text-white">AI</span></h1>
-        <p class="text-gray-500 mb-8 font-medium">Branded Financial Workspace</p>
-        <form method="POST" action="/" class="bg-[#0d1117] p-8 rounded-3xl border border-[#30363d] w-full max-w-sm shadow-2xl">
-            <div class="mb-4">
-                <label class="block text-xs font-bold text-gray-400 mb-2 uppercase">Email Address</label>
-                <input type="email" name="email" required class="w-full bg-[#030508] border border-[#30363d] rounded-xl p-3 outline-none focus:border-blue-500 transition">
-            </div>
-            <div class="mb-6">
-                <label class="block text-xs font-bold text-gray-400 mb-2 uppercase">Password</label>
-                <input type="password" name="password" required class="w-full bg-[#030508] border border-[#30363d] rounded-xl p-3 outline-none focus:border-blue-500 transition">
-            </div>
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition">LOG IN</button>
-            <p class="text-center text-[10px] text-gray-600 mt-4">Demo: test@example.com / password123</p>
-        </form>
+    <div class="flex-1 flex flex-col justify-center items-center p-6 text-center">
+        <h1 class="text-5xl font-black ai-glow mb-2 tracking-tighter">SMILE <span class="text-white">AI</span></h1>
+        <p class="text-gray-400 mb-10 font-medium">Please sign in to access your workspace</p>
+        
+        <div class="bg-[#0d1117] p-10 rounded-3xl border border-[#30363d] shadow-2xl w-full max-w-sm">
+             <div id="g_id_onload"
+                 data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+                 data-context="signin"
+                 data-ux_mode="popup"
+                 data-callback="handleCredentialResponse"
+                 data-auto_prompt="false">
+             </div>
+             <div class="g_id_signin" data-type="standard" data-shape="pill" data-theme="filled_blue" data-text="signin_with" data-size="large" data-logo_alignment="left"></div>
+             
+             <form method="POST" action="/manual-login" class="mt-6 border-t border-gray-800 pt-6">
+                <button type="submit" class="text-xs text-gray-500 hover:text-blue-400">Quick Demo Access (Skip Login)</button>
+             </form>
+        </div>
     </div>
 
     {% else %}
-    <aside class="sidebar hidden md:flex flex-col p-4">
-        <div class="mb-10">
-            <h1 class="text-xl font-black ai-glow">SMILE <span class="text-white text-sm">PRO</span></h1>
+    <aside id="sideMenu" class="sidebar flex flex-col p-4">
+        <div class="flex justify-between items-center mb-10 px-2">
+            <h1 class="text-xl font-black ai-glow">SMILE <span class="text-white">PRO</span></h1>
+            <button onclick="toggleMenu()" class="md:hidden text-gray-400"><i class="fa-solid fa-xmark text-xl"></i></button>
         </div>
         <nav class="flex-1 space-y-2">
-            <p class="text-gray-500 text-[10px] font-bold uppercase tracking-widest px-2 mb-4">My Stuff</p>
-            <button class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-800 transition text-sm text-gray-300">
+            <button class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-800 transition text-sm">
                 <i class="fa-solid fa-plus text-blue-400"></i> New Chat
             </button>
-            <button class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-800 transition text-sm text-gray-300">
+            <button class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-800 transition text-sm">
                 <i class="fa-solid fa-gem text-purple-400"></i> Gems
             </button>
-            <button class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-800 transition text-sm text-gray-300">
-                <i class="fa-solid fa-clock-rotate-left text-gray-400"></i> History
+            <button class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-800 transition text-sm">
+                <i class="fa-solid fa-history text-gray-400"></i> My Stuff
             </button>
         </nav>
         <div class="border-t border-gray-800 pt-4">
@@ -73,43 +76,43 @@ HTML_TEMPLATE = """
     </aside>
 
     <main class="flex-1 flex flex-col relative h-full">
-        <header class="flex justify-between items-center p-4 border-b border-[#1a1a1a]">
-            <div class="md:hidden text-blue-400"><i class="fa-solid fa-bars-staggered"></i></div>
-            <div class="hidden md:block text-gray-400 text-xs">Model: Smile-GPT-5 (V2)</div>
-            <a href="https://smilefinancialsolution.com/" class="bg-gray-800 px-4 py-1.5 rounded-full text-[10px] font-bold border border-gray-700">Visit Website</a>
+        <header class="flex justify-between items-center p-4 border-b border-[#1a1a1a] bg-[#030508]">
+            <button onclick="toggleMenu()" class="md:hidden text-blue-400 p-2"><i class="fa-solid fa-bars-staggered text-xl"></i></button>
+            <div class="hidden md:block text-gray-500 text-[10px] font-bold uppercase tracking-widest">Workspace Online</div>
+            <a href="https://smilefinancialsolution.com/" class="bg-blue-600 px-4 py-1.5 rounded-full text-[10px] font-bold">Visit Website</a>
         </header>
 
-        <div id="chat-content" class="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
-            <div class="max-w-3xl mx-auto">
-                <div class="flex gap-4 mb-8">
-                    <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-xs"><i class="fa-solid fa-robot"></i></div>
-                    <div class="flex-1 space-y-2">
-                        <p class="text-sm leading-relaxed text-gray-200 bg-[#0d1117] p-4 rounded-2xl border border-gray-800">
-                            Namaste! Main Smile Financial AI hoon. Aapki Loan, Marketing ya Website design mein kaise madad kar sakta hoon?
-                        </p>
+        <div id="chat-content" class="flex-1 overflow-y-auto p-4 md:p-8">
+            <div class="max-w-3xl mx-auto space-y-6">
+                <div class="flex gap-4">
+                    <div class="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-900/40">
+                        <i class="fa-solid fa-robot text-sm"></i>
+                    </div>
+                    <div class="flex-1 p-4 rounded-2xl bg-[#0d1117] border border-gray-800 text-sm leading-relaxed">
+                        Namaste! Main Smile Financial AI hoon. Aapki Loan, Marketing ya Website design mein kaise madad kar sakta hoon?
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="input-container flex items-center gap-3 shadow-2xl">
-            <label class="cursor-pointer text-gray-400 hover:text-blue-400 transition ml-2">
-                <i class="fa-solid fa-circle-plus text-xl"></i>
+        <div class="input-container flex items-center gap-4 shadow-2xl mb-6">
+            <label class="cursor-pointer text-gray-500 hover:text-blue-400 transition">
+                <i class="fa-solid fa-circle-plus text-2xl"></i>
                 <input type="file" class="hidden">
             </label>
             <input type="text" id="user-input" placeholder="Ask Smile AI or upload file..." class="flex-1 bg-transparent outline-none text-sm py-2">
-            <button class="text-gray-400 hover:text-blue-400 px-2"><i class="fa-solid fa-microphone text-lg"></i></button>
-            <button onclick="sendMsg()" class="bg-white text-black w-8 h-8 rounded-full flex items-center justify-center hover:bg-blue-400 transition">
-                <i class="fa-solid fa-arrow-up text-xs"></i>
+            <button class="text-gray-500 hover:text-blue-400"><i class="fa-solid fa-microphone text-xl"></i></button>
+            <button onclick="sendMsg()" class="bg-white text-black w-9 h-9 rounded-full flex items-center justify-center hover:bg-blue-400 transition">
+                <i class="fa-solid fa-arrow-up text-sm"></i>
             </button>
         </div>
     </main>
     {% endif %}
 
     <script>
-        // Set height for mobile
-        const vh = window.innerHeight * 0.01;
-        document.documentElement.style.setProperty('--vh', `${vh}px`);
+        function toggleMenu() {
+            document.getElementById('sideMenu').classList.toggle('active');
+        }
 
         async function sendMsg() {
             const input = document.getElementById('user-input');
@@ -117,7 +120,7 @@ HTML_TEMPLATE = """
             if(!input.value) return;
 
             const text = input.value;
-            chat.innerHTML += `<div class="max-w-3xl mx-auto flex justify-end mb-4"><div class="bg-blue-600 text-white p-3 px-5 rounded-2xl text-sm shadow-lg">${text}</div></div>`;
+            chat.innerHTML += `<div class="max-w-3xl mx-auto flex justify-end mb-6"><div class="bg-blue-600 text-white p-3 px-5 rounded-2xl text-sm shadow-md">${text}</div></div>`;
             input.value = "";
             chat.scrollTop = chat.scrollHeight;
 
@@ -129,34 +132,34 @@ HTML_TEMPLATE = """
             const data = await res.json();
             
             chat.innerHTML += `
-                <div class="max-w-3xl mx-auto flex gap-4 mb-8">
-                    <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-xs"><i class="fa-solid fa-robot"></i></div>
-                    <div class="flex-1 p-4 rounded-2xl border border-gray-800 text-sm leading-relaxed bg-[#0d1117]">${data.reply}</div>
+                <div class="max-w-3xl mx-auto flex gap-4 mb-6">
+                    <div class="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white"><i class="fa-solid fa-robot text-sm"></i></div>
+                    <div class="flex-1 p-4 rounded-2xl bg-[#0d1117] border border-gray-800 text-sm leading-relaxed">${data.reply}</div>
                 </div>`;
             chat.scrollTop = chat.scrollHeight;
 
             const speech = new SpeechSynthesisUtterance(data.reply);
-            speech.rate = 0.95;
             window.speechSynthesis.speak(speech);
+        }
+
+        // Handle Google Login Response
+        function handleCredentialResponse(response) {
+            // In real app, send 'response.credential' to backend to verify
+            window.location.href = "/manual-login"; 
         }
     </script>
 </body>
 </html>
 """
 
-# --- BACKEND ROUTES ---
-
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/')
 def home():
-    if request.method == 'POST':
-        email = request.form.get('email')
-        pw = request.form.get('password')
-        if email in USERS and USERS[email] == pw:
-            session['logged_in'] = True
-            return redirect(url_for('home'))
-        return "Invalid! <a href='/'>Try again</a>"
-    
     return render_template_string(HTML_TEMPLATE, logged_in=session.get('logged_in'))
+
+@app.route('/manual-login', methods=['POST', 'GET'])
+def manual_login():
+    session['logged_in'] = True
+    return redirect(url_for('home'))
 
 @app.route('/ask', methods=['POST'])
 def ask():
@@ -164,23 +167,17 @@ def ask():
     q = data.get('query', "")
     api_key = "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"
     
-    system_prompt = (
-        "You are an expert AI for Smile Financial Solution. Website: https://smilefinancialsolution.com/. "
-        "Services: Loans, Business/Marketing Support, Web Design, AI/App Development. Contact: 7290977231. "
-        "Instructions: Reply in natural human tone (English/Hindi). Be professional and concise."
-    )
-
     try:
         r = requests.post("https://api.groq.com/openai/v1/chat/completions", 
             headers={"Authorization": f"Bearer {api_key}"}, 
             json={
                 "model": "llama-3.3-70b-versatile",
-                "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": q}],
+                "messages": [{"role": "system", "content": "You are Smile Financial AI expert."}, {"role": "user", "content": q}],
                 "temperature": 0.5
             })
         reply = r.json()['choices'][0]['message']['content']
     except:
-        reply = "Kshama karein, connection issue hai. Please 7290977231 par contact karein."
+        reply = "Service busy, please try again."
 
     return jsonify({"reply": reply})
 
