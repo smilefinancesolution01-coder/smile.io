@@ -1,116 +1,240 @@
 import os
+import json
 import requests
 from flask import Flask, request, jsonify, render_template_string, session, redirect, url_for
-# Gemini 3 ke liye new library (Iske liye 'pip install google-genai' karna hoga)
-from google import genai 
+from google import genai
 from google.genai import types
 
 app = Flask(__name__)
-app.secret_key = "smile_pro_gemini_3_ultra"
+app.secret_key = "smile_financial_ai_exclusive"
 
-# --- CONFIGURATION ---
-# Bhai yahan apni Google Cloud Project ID daalna agar Gemini 3 use karna hai
-os.environ["GOOGLE_CLOUD_PROJECT"] = "smile-ai-486910" 
-os.environ["GOOGLE_CLOUD_LOCATION"] = "global"
+# --- JSON KEY SETUP FOR RENDER ---
+json_creds = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+if json_creds:
+    with open("google_key.json", "w") as f:
+        f.write(json_creds)
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.abspath("google_key.json")
 
-# --- INTERFACE (ASLI GEMINI 3 MOBILE LOOK) ---
+PROJECT_ID = "smile-ai-486910"
+
+# --- SYSTEM PROMPT (Identity Fixing) ---
+# Yahan AI ko uski pehchan sikhayi ja rahi hai
+SYSTEM_INSTRUCTION = """
+You are 'Smile Financial Solution AI', developed by 'Smile Financial Solution Company'. 
+Never mention Google or Gemini. Your purpose is to provide Financial Support, Business Planning, 
+and general assistance. You know everything about Smile Financial Solution's services 
+(Loans, Insurance, Investment planning, Business Growth). Always greet users politely 
+as a representative of Smile Financial Solution.
+"""
+
 HTML_TEMPLATE = """
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gemini 3 Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Smile Financial Solution AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500&display=swap');
-        body { background: #f8fafd; color: #1f1f1f; font-family: 'Google Sans', sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-        .gemini-pill { background: white; border: 1px solid #e0e0e0; border-radius: 24px; padding: 10px 16px; font-size: 14px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
-        .bottom-container { background: white; padding: 12px 16px 30px 16px; border-top: 1px solid #f0f0f0; }
-        .input-wrapper { background: #f0f4f9; border-radius: 32px; padding: 10px 18px; display: flex; align-items: center; gap: 12px; }
-        .sidebar { background: white; position: fixed; left: 0; top: 0; bottom: 0; width: 280px; z-index: 100; transform: translateX(-100%); transition: 0.3s ease; box-shadow: 4px 0 15px rgba(0,0,0,0.05); }
-        .sidebar.active { transform: translateX(0); }
-        .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #4caf50; color: white; display: flex; align-items: center; justify-content: center; font-size: 14px; }
-        .thinking-step { color: #4285f4; font-size: 12px; font-style: italic; margin-bottom: 5px; display: block; }
-        #chat-container::-webkit-scrollbar { width: 0px; }
+        
+        :root { --primary-blue: #1a73e8; --bg-gray: #f8fafd; }
+        
+        body { 
+            background: var(--bg-gray); 
+            font-family: 'Google Sans', sans-serif; 
+            height: 100vh; 
+            margin: 0;
+            display: flex; 
+            flex-direction: column;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Responsive Header */
+        header { 
+            background: white; 
+            padding: 12px 16px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-bottom: 1px solid #eee;
+            position: sticky; top: 0; z-index: 50;
+        }
+
+        .visit-site-btn {
+            font-size: 12px;
+            color: var(--primary-blue);
+            border: 1px solid var(--primary-blue);
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-weight: 500;
+        }
+
+        /* Chat Layout */
+        main { flex: 1; overflow-y: auto; padding: 16px; scroll-behavior: smooth; }
+        .welcome-text { font-size: 28px; line-height: 1.2; color: #1f1f1f; margin-top: 20px; }
+        .sub-text { color: #70757a; font-size: 16px; margin-top: 8px; }
+
+        /* Gemini-style Pills */
+        .pill-container { display: flex; gap: 8px; overflow-x: auto; padding: 16px 0; scrollbar-width: none; }
+        .pill { 
+            background: white; border: 1px solid #dadce0; 
+            padding: 10px 18px; border-radius: 24px; 
+            white-space: nowrap; font-size: 14px; cursor: pointer;
+        }
+
+        /* Gemini-style Keyboard Area */
+        .bottom-nav { 
+            background: white; 
+            padding: 12px 16px env(safe-area-inset-bottom); 
+            border-top: 1px solid #f1f1f1;
+        }
+        
+        .input-box {
+            background: #f0f4f9;
+            border-radius: 28px;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .input-box input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            padding: 8px 0;
+            color: #1f1f1f;
+        }
+
+        .icon-btn { color: #5f6368; font-size: 20px; cursor: pointer; transition: 0.2s; }
+        .icon-btn:hover { color: var(--primary-blue); }
+        
+        #send-btn { color: var(--primary-blue); display: none; }
+
+        .ai-response { display: flex; gap: 12px; margin-top: 24px; }
+        .ai-icon { width: 30px; height: 30px; filter: hue-rotate(200deg); }
+        .user-msg { background: #e9eef6; padding: 12px 18px; border-radius: 20px; align-self: flex-end; max-width: 85%; }
+        
+        .thinking { font-size: 12px; color: var(--primary-blue); margin-bottom: 4px; display: none; }
     </style>
 </head>
 <body>
 
     {% if not logged_in %}
-    <div class="flex-1 flex flex-col justify-center items-center bg-white p-6">
-        <img src="https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d473530c2731a4cd0247d.svg" class="w-16 mb-6">
-        <h1 class="text-3xl font-medium mb-10">Smile AI <span class="text-blue-500">3</span></h1>
+    <div class="flex-1 flex flex-col justify-center items-center bg-white p-8">
+        <img src="https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d473530c2731a4cd0247d.svg" class="w-20 mb-6 ai-icon">
+        <h1 class="text-3xl font-bold text-gray-800">Smile Financial <span class="text-blue-600">AI</span></h1>
+        <p class="text-gray-500 mt-4 mb-10">Namaste! Login to access your financial assistant.</p>
         <div id="g_id_onload" data-client_id="434178553524-ebqcdglqghl6op8jj92i0vtqgpnj7uku.apps.googleusercontent.com" data-callback="handleCredentialResponse"></div>
-        <div class="g_id_signin" data-type="standard" data-shape="pill"></div>
+        <div class="g_id_signin" data-type="standard"></div>
     </div>
     {% else %}
 
-    <header class="p-4 flex justify-between items-center bg-white">
-        <button onclick="toggleMenu()"><i class="fa-solid fa-bars text-xl"></i></button>
-        <span class="text-xl font-medium tracking-tight">Gemini <span class="text-xs bg-blue-100 text-blue-600 px-2 rounded">3 PRO</span></span>
-        <div class="user-avatar">M</div>
+    <header>
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-bars text-gray-500"></i>
+            <span class="font-medium text-lg">Smile AI</span>
+        </div>
+        <a href="https://yourcompany.com" target="_blank" class="visit-site-btn">Visit Site</a>
     </header>
 
-    <main id="chat-container" class="flex-1 overflow-y-auto px-5">
-        <div id="welcome-screen" class="mt-8">
-            <h1 class="text-3xl font-normal mb-8">नमस्ते Mohmmad<br><span class="text-gray-400">मैं आपकी कैसे मदद कर सकता हूँ?</span></h1>
-            <div class="flex flex-wrap gap-2">
-                <div class="gemini-pill" onclick="fillInput('इमेज बनाएँ')"><span>🖼️</span> इमेज बनाएँ</div>
-                <div class="gemini-pill" onclick="fillInput('C++ कोडिंग में मदद करें')"><span>💻</span> कोडिंग</div>
-                <div class="gemini-pill" onclick="fillInput('मेरा दिन प्लान करें')"><span>📅</span> प्लानिंग</div>
+    <main id="chat-container">
+        <div id="welcome-ui">
+            <div class="welcome-text">नमस्ते Mohmmad</div>
+            <div class="sub-text">मैं Smile Financial Solution AI हूँ, आज मैं आपकी क्या सहायता कर सकता हूँ?</div>
+            
+            <div class="pill-container">
+                <div class="pill" onclick="sendQuick('Business Planning help')">📊 Business Planning</div>
+                <div class="pill" onclick="sendQuick('Financial support options')">💰 Financial Support</div>
+                <div class="pill" onclick="sendQuick('Create a professional image')">🖼️ Create Image</div>
             </div>
         </div>
-        <div id="messages" class="space-y-6 pb-10 mt-4"></div>
+        <div id="chat-messages" class="flex flex-col gap-4"></div>
     </main>
 
-    <div class="bottom-container">
-        <div class="input-wrapper">
-            <label class="cursor-pointer text-gray-500"><i class="fa-solid fa-plus text-xl"></i><input type="file" class="hidden"></label>
-            <input type="text" id="user-input" placeholder="Gemini से पूछें" class="flex-1 bg-transparent outline-none py-1">
-            <i class="fa-solid fa-microphone text-xl text-gray-500" id="mic-btn"></i>
-            <button onclick="sendMsg()" id="send-btn" class="hidden text-blue-600"><i class="fa-solid fa-paper-plane text-xl"></i></button>
+    <div class="bottom-nav">
+        <div class="input-box">
+            <label for="file-up" class="icon-btn"><i class="fa-solid fa-plus"></i></label>
+            <input type="file" id="file-up" class="hidden">
+            
+            <input type="text" id="user-input" placeholder="Smile AI से पूछें..." autocomplete="off">
+            
+            <i class="fa-solid fa-microphone icon-btn" id="mic-btn"></i>
+            <button id="send-btn" onclick="handleSend()"><i class="fa-solid fa-paper-plane"></i></button>
         </div>
+        <div class="text-[10px] text-center text-gray-400 mt-2">Developed by Smile Financial Solution Company</div>
     </div>
+
     {% endif %}
 
     <script>
-        function toggleMenu() { document.getElementById('sideMenu')?.classList.toggle('active'); }
-        function fillInput(text) { document.getElementById('user-input').value = text; }
-
         const input = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const micBtn = document.getElementById('mic-btn');
+
         input?.addEventListener('input', () => {
-            const hasText = input.value.trim() !== "";
-            document.getElementById('send-btn').classList.toggle('hidden', !hasText);
-            document.getElementById('mic-btn').classList.toggle('hidden', hasText);
+            const hasVal = input.value.trim() !== "";
+            sendBtn.style.display = hasVal ? 'block' : 'none';
+            micBtn.style.display = hasVal ? 'none' : 'block';
         });
 
-        async function sendMsg() {
-            const text = input.value;
+        async function handleSend() {
+            const text = input.value.trim();
             if(!text) return;
-            document.getElementById('welcome-screen').style.display = 'none';
-            document.getElementById('messages').innerHTML += `<div class="flex justify-end"><div class="bg-[#e9eef6] px-4 py-2 rounded-2xl max-w-[85%]">${text}</div></div>`;
-            input.value = "";
-
-            const res = await fetch('/ask', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({query: text})
-            });
-            const data = await res.json();
             
-            document.getElementById('messages').innerHTML += `
-                <div class="flex gap-3">
-                    <img src="https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d473530c2731a4cd0247d.svg" class="w-6 h-6 mt-1">
-                    <div>
-                        <span class="thinking-step">Gemini 3 Thinking...</span>
-                        <div class="text-[15px] text-gray-800">${data.reply}</div>
-                    </div>
-                </div>`;
-            document.getElementById('chat-container').scrollTop = document.getElementById('chat-container').scrollHeight;
+            document.getElementById('welcome-ui').style.display = 'none';
+            addMessage(text, 'user');
+            input.value = "";
+            sendBtn.style.display = 'none';
+            micBtn.style.display = 'block';
+
+            const loadingId = addMessage("Smile AI is thinking...", 'ai', true);
+
+            try {
+                const res = await fetch('/ask', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({query: text})
+                });
+                const data = await res.json();
+                updateAI(loadingId, data.reply);
+            } catch (e) {
+                updateAI(loadingId, "Maaf kijiye, connection mein dikkat hai.");
+            }
         }
+
+        function addMessage(text, sender, isLoading = false) {
+            const container = document.getElementById('chat-messages');
+            const id = "msg-" + Date.now();
+            if(sender === 'user') {
+                container.innerHTML += `<div class="user-msg">${text}</div>`;
+            } else {
+                container.innerHTML += `
+                    <div class="ai-response" id="${id}">
+                        <img src="https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d473530c2731a4cd0247d.svg" class="ai-icon">
+                        <div>
+                            <div class="thinking" style="${isLoading ? 'display:block' : ''}">Thinking...</div>
+                            <div class="ai-txt">${isLoading ? '...' : text}</div>
+                        </div>
+                    </div>`;
+            }
+            document.getElementById('chat-container').scrollTop = document.getElementById('chat-container').scrollHeight;
+            return id;
+        }
+
+        function updateAI(id, text) {
+            const el = document.getElementById(id);
+            if(el) {
+                el.querySelector('.thinking').style.display = 'none';
+                el.querySelector('.ai-txt').innerText = text;
+            }
+        }
+
+        function sendQuick(t) { input.value = t; handleSend(); }
 
         function handleCredentialResponse(response) {
             fetch('/google-login', {
@@ -136,32 +260,18 @@ def google_login():
 @app.route('/ask', methods=['POST'])
 def ask():
     q = request.json.get('query', "")
-    
-    # GEMINI 3 INTEGRATION LOGIC
-    # Bhai, agar Google Cloud set hai toh ye use karega, warna fallback Llama par jayega
     try:
-        # client = genai.Client() # Gemini 3 Client
-        # response = client.models.generate_content(
-        #    model="gemini-3-pro-preview",
-        #    contents=q,
-        #    config=types.GenerateContentConfig(thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.HIGH))
-        # )
-        # reply = response.text
-        
-        # TESTING FALLBACK (Jab tak SDK install na ho):
-        r = requests.post("https://api.groq.com/openai/v1/chat/completions", 
-            headers={"Authorization": f"Bearer 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"}, 
-            json={"model": "llama-3.3-70b-versatile", "messages": [{"role": "user", "content": q}]})
-        reply = r.json()['choices'][0]['message']['content']
+        client = genai.Client(vertexai=True, project=PROJECT_ID, location="us-central1")
+        # System Instruction se AI ki identity lock kar di gayi hai
+        response = client.models.generate_content(
+            model="gemini-1.5-flash",
+            contents=q,
+            config=types.GenerateContentConfig(system_instruction=SYSTEM_INSTRUCTION)
+        )
+        reply = response.text
     except:
-        reply = "Gemini 3 Connection Error. Please check Project ID."
-
+        reply = "Smile Financial Solution AI is currently busy. Please try again."
     return jsonify({"reply": reply})
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('home'))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
