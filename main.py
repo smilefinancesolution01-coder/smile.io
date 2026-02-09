@@ -10,7 +10,7 @@ HTML_CODE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
-    <title>Smile AI - Human Mode</title>
+    <title>Smile AI - Final</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -20,40 +20,33 @@ HTML_CODE = """
             height: calc(var(--vh) * 100); display: flex; flex-direction: column; overflow: hidden;
         }
         .ai-glow { text-shadow: 0 0 10px #00f2fe; color: #00f2fe; }
-        .chat-container { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 120px; }
-        .glass-card { background: rgba(20, 25, 35, 0.95); border: 1px solid #333; border-radius: 20px; margin-bottom: 12px; animation: fadeIn 0.3s ease; }
-        .input-area { position: fixed; bottom: 0; left: 0; right: 0; background: #030508; padding: 15px; border-top: 1px solid #222; z-index: 20; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .chat-container { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 90px; }
+        .glass-card { background: rgba(20, 25, 35, 0.95); border: 1px solid #333; border-radius: 18px; margin-bottom: 12px; position: relative; }
+        .input-area { position: fixed; bottom: 0; left: 0; right: 0; background: #030508; padding: 12px; border-top: 1px solid #222; }
+        .wa-small { position: absolute; bottom: 8px; right: 12px; color: #2ecc71; font-size: 18px; }
     </style>
 </head>
 <body>
     <header class="flex justify-between items-center p-4 border-b border-gray-900 bg-[#030508] z-30">
-        <h1 class="text-xl font-black ai-glow tracking-tighter">SMILE <span class="text-white">AI</span></h1>
-        <a href="https://smilefinancialsolution.com/" target="_blank" class="bg-blue-600 px-5 py-2 rounded-full text-xs font-bold uppercase shadow-lg shadow-blue-900/20">Visit Site</a>
+        <h1 class="text-xl font-black ai-glow">SMILE <span class="text-white">AI</span></h1>
+        <a href="https://smilefinancialsolution.com/" target="_blank" class="bg-blue-600 px-4 py-2 rounded-full text-[10px] font-bold uppercase">Visit Site</a>
     </header>
 
     <div id="chat-box" class="chat-container">
-        <div class="glass-card p-4 max-w-[90%] border-l-4 border-blue-500 text-sm">
-            Namaste! Main Smile Financial AI hoon. Main aapki Loan, Business Marketing, ya Website/App Development mein kaise madad kar sakta hoon?
+        <div class="glass-card p-4 max-w-[90%] border-l-4 border-blue-500 text-sm shadow-xl">
+            Namaste! Main Smile Financial AI hoon. Main aapki Loan, Business Marketing, ya Tech Development mein kaise madad kar sakta hoon?
+            <a href="https://wa.me/917290977231" target="_blank" class="wa-small"><i class="fa-brands fa-whatsapp"></i></a>
         </div>
     </div>
 
     <div class="input-area">
-        <div id="call-box" class="hidden mb-3 grid grid-cols-2 gap-2">
-             <a href="tel:7290977231" class="bg-green-600 py-3 rounded-xl flex justify-center items-center gap-2 font-bold text-[10px]">
-                <i class="fa-solid fa-whatsapp"></i> WHATSAPP
-             </a>
-             <a href="tel:8929208628" class="bg-blue-600 py-3 rounded-xl flex justify-center items-center gap-2 font-bold text-[10px]">
-                <i class="fa-solid fa-phone"></i> HELPLINE
-             </a>
-        </div>
-        <div class="flex items-center gap-2 bg-gray-900 rounded-full p-1 border border-gray-800 shadow-inner">
-            <input type="text" id="user-input" placeholder="Bol kar pucho..." class="flex-1 bg-transparent outline-none px-4 text-sm py-3">
-            <button id="mic-btn" onclick="toggleMic()" class="w-12 h-12 rounded-full text-blue-400 flex items-center justify-center">
-                <i id="mic-icon" class="fa-solid fa-microphone text-xl"></i>
+        <div class="flex items-center gap-2 bg-gray-900 rounded-full p-1 border border-gray-800">
+            <input type="text" id="user-input" placeholder="Type or Speak..." class="flex-1 bg-transparent outline-none px-4 text-sm py-3">
+            <button id="mic-btn" onclick="toggleMic()" class="w-10 h-10 rounded-full text-blue-400 flex items-center justify-center">
+                <i id="mic-icon" class="fa-solid fa-microphone"></i>
             </button>
-            <button onclick="sendMsg()" class="w-12 h-12 bg-blue-600 rounded-full text-white flex items-center justify-center shadow-lg">
-                <i class="fa-solid fa-arrow-up"></i>
+            <button onclick="sendMsg(true)" class="w-10 h-10 bg-blue-600 rounded-full text-white flex items-center justify-center">
+                <i class="fa-solid fa-arrow-up text-xs"></i>
             </button>
         </div>
     </div>
@@ -69,37 +62,28 @@ HTML_CODE = """
 
         if ('webkitSpeechRecognition' in window) {
             recognition = new webkitSpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.lang = 'hi-IN';
+            recognition.lang = 'hi-IN'; // Default starts with Hindi support
 
             recognition.onresult = (e) => {
                 const transcript = e.results[0][0].transcript;
                 document.getElementById('user-input').value = transcript;
-                sendMsg();
+                sendMsg(false); // False means don't speak the response if text input was used (auto-voice only for mic)
             };
-            recognition.onend = () => { stopMicUI(); };
-            recognition.onerror = () => { stopMicUI(); };
+            recognition.onend = () => { isListening = false; document.getElementById('mic-icon').className='fa-solid fa-microphone'; };
         }
 
         function toggleMic() {
             if (isListening) { recognition.stop(); synth.cancel(); }
-            else { 
-                synth.cancel();
-                try { recognition.start(); startMicUI(); } catch(e) { console.log(e); }
-            }
+            else { synth.cancel(); recognition.start(); isListening = true; document.getElementById('mic-icon').className='fa-solid fa-stop text-red-500'; }
         }
 
-        function startMicUI() { isListening = true; document.getElementById('mic-icon').className='fa-solid fa-circle-stop text-red-500 animate-pulse'; }
-        function stopMicUI() { isListening = false; document.getElementById('mic-icon').className='fa-solid fa-microphone'; }
-
-        async function sendMsg() {
+        async function sendMsg(isManualText) {
             const input = document.getElementById('user-input');
             const chat = document.getElementById('chat-box');
             if(!input.value) return;
 
             const text = input.value;
-            chat.innerHTML += `<div class="ml-auto bg-blue-900/40 p-4 rounded-2xl max-w-[85%] text-right border-r-2 border-blue-400 text-sm mb-4">${text}</div>`;
+            chat.innerHTML += `<div class="ml-auto bg-gray-800 p-3 rounded-2xl max-w-[80%] text-right text-xs mb-4">${text}</div>`;
             input.value = "";
             chat.scrollTop = chat.scrollHeight;
 
@@ -110,14 +94,16 @@ HTML_CODE = """
             });
             const data = await res.json();
             
-            chat.innerHTML += `<div class="glass-card p-4 max-w-[85%] border-l-4 border-blue-400 text-sm mb-4 leading-relaxed">${data.reply}</div>`;
-            if(data.call_logic) document.getElementById('call-box').classList.remove('hidden');
+            chat.innerHTML += `<div class="glass-card p-4 max-w-[85%] border-l-4 border-blue-400 text-sm mb-4">${data.reply}</div>`;
             chat.scrollTop = chat.scrollHeight;
 
-            const utterance = new SpeechSynthesisUtterance(data.reply);
-            utterance.rate = 0.95;
-            utterance.pitch = 1;
-            synth.speak(utterance);
+            // Voice only if it was a mic input or explicitly needed
+            if(!isManualText || isListening) {
+                const utterance = new SpeechSynthesisUtterance(data.reply);
+                utterance.lang = data.lang === 'en' ? 'en-US' : 'hi-IN';
+                utterance.rate = 0.95;
+                synth.speak(utterance);
+            }
         }
     </script>
 </body>
@@ -134,16 +120,15 @@ def ask():
     q = data.get('query', "")
     api_key = "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"
     
-    # Updated Knowledge Base with your provided details
+    # Detected English or Hindi based on query
+    is_english = any(word in q.lower() for word in ["hello", "how", "what", "loan", "price", "website"])
+
     system_prompt = (
-        "Role: Human Expert from Smile Financial Solution. "
-        "Official Website: https://smilefinancialsolution.com/ "
-        "Official Email: smilefinancesolution01@gmail.com "
-        "WhatsApp: 7290977231 | Contact: 8586051944 | Helpline: 8929208628. "
-        "Services: Financial Support (Loans), Business Support, Marketing Support, Website Design, AI Courses, AI & App Development. "
-        "Success: 10,000+ stories, Pan India service, generates employment. "
-        "Instructions: Ignore spelling mistakes in user query and understand the intent. Reply in a natural human tone, keep it short. "
-        "Always provide contact info if the user looks interested in services."
+        "You are a human expert from Smile Financial Solution. "
+        "Identity: Created by Smile Financial Solution. We provide: Financial Support, Business/Marketing Support, Website/App Development, AI Courses. "
+        "Contact: Website: https://smilefinancialsolution.com/, Email: smilefinancesolution01@gmail.com, WhatsApp: 7290977231, Helpline: 8929208628. "
+        "Rules: If user speaks English, reply in English. If Hindi, reply in Hindi. "
+        "Tone: Natural human tone. Short answers. No bakchodi. Provide contact details only when asked."
     )
 
     try:
@@ -152,13 +137,14 @@ def ask():
             json={
                 "model": "llama-3.3-70b-versatile",
                 "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": q}],
-                "temperature": 0.5
+                "temperature": 0.5,
+                "max_tokens": 120
             })
         reply = r.json()['choices'][0]['message']['content']
     except:
-        reply = "Kshama karein, connection slow hai. Aap 7290977231 par call ya WhatsApp kar sakte hain."
+        reply = "Kshama karein, main connect nahi kar pa raha hoon."
 
-    return jsonify({"reply": reply, "call_logic": True})
+    return jsonify({"reply": reply, "lang": "en" if is_english else "hi"})
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
