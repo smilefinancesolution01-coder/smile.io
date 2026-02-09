@@ -1,5 +1,3 @@
-flask
-requests
-google-genai
-google-auth
-gunicorn
+fastapi
+uvicorn
+mcp
