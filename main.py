@@ -3,16 +3,16 @@ from flask import Flask, request, jsonify, render_template_string, session, redi
 import os
 
 app = Flask(__name__)
-app.secret_key = "smile_pro_google_auth_key"
+app.secret_key = "smile_pro_google_auth_key_final"
 
-# --- BRANDED INTERFACE WITH GOOGLE LOGIN ---
+# --- BRANDED INTERFACE WITH YOUR GOOGLE CLIENT ID ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
-    <title>Smile AI - Google Workspace</title>
+    <title>Smile AI - Professional Workspace</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -33,11 +33,11 @@ HTML_TEMPLATE = """
     {% if not logged_in %}
     <div class="flex-1 flex flex-col justify-center items-center p-6 text-center">
         <h1 class="text-5xl font-black ai-glow mb-2 tracking-tighter">SMILE <span class="text-white">AI</span></h1>
-        <p class="text-gray-400 mb-10 font-medium">Please sign in to access your workspace</p>
+        <p class="text-gray-400 mb-10 font-medium">Please sign in with Google to access your workspace</p>
         
-        <div class="bg-[#0d1117] p-10 rounded-3xl border border-[#30363d] shadow-2xl w-full max-w-sm">
+        <div class="bg-[#0d1117] p-10 rounded-3xl border border-[#30363d] shadow-2xl w-full max-w-sm flex flex-col items-center">
              <div id="g_id_onload"
-                 data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+                 data-client_id="434178553524-ebqcdglqghl6op8jj92i0vtqgpnj7uku.apps.googleusercontent.com"
                  data-context="signin"
                  data-ux_mode="popup"
                  data-callback="handleCredentialResponse"
@@ -45,9 +45,7 @@ HTML_TEMPLATE = """
              </div>
              <div class="g_id_signin" data-type="standard" data-shape="pill" data-theme="filled_blue" data-text="signin_with" data-size="large" data-logo_alignment="left"></div>
              
-             <form method="POST" action="/manual-login" class="mt-6 border-t border-gray-800 pt-6">
-                <button type="submit" class="text-xs text-gray-500 hover:text-blue-400">Quick Demo Access (Skip Login)</button>
-             </form>
+             <p class="mt-6 text-[10px] text-gray-600 italic">Branded Workspace by Smile Financial Solution</p>
         </div>
     </div>
 
@@ -79,16 +77,16 @@ HTML_TEMPLATE = """
         <header class="flex justify-between items-center p-4 border-b border-[#1a1a1a] bg-[#030508]">
             <button onclick="toggleMenu()" class="md:hidden text-blue-400 p-2"><i class="fa-solid fa-bars-staggered text-xl"></i></button>
             <div class="hidden md:block text-gray-500 text-[10px] font-bold uppercase tracking-widest">Workspace Online</div>
-            <a href="https://smilefinancialsolution.com/" class="bg-blue-600 px-4 py-1.5 rounded-full text-[10px] font-bold">Visit Website</a>
+            <a href="https://smilefinancialsolution.com/" class="bg-blue-600 px-4 py-1.5 rounded-full text-[10px] font-bold shadow-lg shadow-blue-900/20">Visit Website</a>
         </header>
 
         <div id="chat-content" class="flex-1 overflow-y-auto p-4 md:p-8">
             <div class="max-w-3xl mx-auto space-y-6">
                 <div class="flex gap-4">
-                    <div class="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-900/40">
+                    <div class="w-9 h-9 rounded-full bg-blue-600 flex-shrink-0 flex items-center justify-center text-white shadow-lg shadow-blue-900/40">
                         <i class="fa-solid fa-robot text-sm"></i>
                     </div>
-                    <div class="flex-1 p-4 rounded-2xl bg-[#0d1117] border border-gray-800 text-sm leading-relaxed">
+                    <div class="flex-1 p-4 rounded-2xl bg-[#0d1117] border border-gray-800 text-sm leading-relaxed shadow-sm">
                         Namaste! Main Smile Financial AI hoon. Aapki Loan, Marketing ya Website design mein kaise madad kar sakta hoon?
                     </div>
                 </div>
@@ -133,7 +131,7 @@ HTML_TEMPLATE = """
             
             chat.innerHTML += `
                 <div class="max-w-3xl mx-auto flex gap-4 mb-6">
-                    <div class="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white"><i class="fa-solid fa-robot text-sm"></i></div>
+                    <div class="w-9 h-9 rounded-full bg-blue-600 flex-shrink-0 flex items-center justify-center text-white"><i class="fa-solid fa-robot text-sm"></i></div>
                     <div class="flex-1 p-4 rounded-2xl bg-[#0d1117] border border-gray-800 text-sm leading-relaxed">${data.reply}</div>
                 </div>`;
             chat.scrollTop = chat.scrollHeight;
@@ -142,10 +140,15 @@ HTML_TEMPLATE = """
             window.speechSynthesis.speak(speech);
         }
 
-        // Handle Google Login Response
+        // Handle Google Login Callback
         function handleCredentialResponse(response) {
-            // In real app, send 'response.credential' to backend to verify
-            window.location.href = "/manual-login"; 
+            fetch('/google-login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({token: response.credential})
+            }).then(() => {
+                window.location.reload();
+            });
         }
     </script>
 </body>
@@ -156,10 +159,11 @@ HTML_TEMPLATE = """
 def home():
     return render_template_string(HTML_TEMPLATE, logged_in=session.get('logged_in'))
 
-@app.route('/manual-login', methods=['POST', 'GET'])
-def manual_login():
+@app.route('/google-login', methods=['POST'])
+def google_login():
+    # In production, verify the token here
     session['logged_in'] = True
-    return redirect(url_for('home'))
+    return jsonify({"status": "success"})
 
 @app.route('/ask', methods=['POST'])
 def ask():
@@ -172,12 +176,15 @@ def ask():
             headers={"Authorization": f"Bearer {api_key}"}, 
             json={
                 "model": "llama-3.3-70b-versatile",
-                "messages": [{"role": "system", "content": "You are Smile Financial AI expert."}, {"role": "user", "content": q}],
+                "messages": [
+                    {"role": "system", "content": "You are Smile Financial AI. Expert in Loans and Tech. Be professional."},
+                    {"role": "user", "content": q}
+                ],
                 "temperature": 0.5
             })
         reply = r.json()['choices'][0]['message']['content']
     except:
-        reply = "Service busy, please try again."
+        reply = "Kshama karein, service abhi busy hai."
 
     return jsonify({"reply": reply})
 
