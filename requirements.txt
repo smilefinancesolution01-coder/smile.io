@@ -1,5 +1,4 @@
 flask
 flask-cors
-google-cloud-aiplatform
-google-auth
+requests
 gunicorn
