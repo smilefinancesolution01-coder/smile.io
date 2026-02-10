@@ -6,21 +6,18 @@ import google.generativeai as genai
 app = Flask(__name__)
 CORS(app)
 
-# API Key fix
+# API KEY
 API_KEY = "AIzaSyCJCmyILSlIl4gYA8-7cFcTtlL3_KvYYR4"
 
-# Forcefully configure using the most stable method
-try:
-    genai.configure(api_key=API_KEY)
-    # Yahan hum model ko bina version prefix ke call karenge
-    model = genai.GenerativeModel('gemini-pro') 
-    # 'gemini-pro' har API key par 100% chalta hai 404 nahi deta
-except Exception as e:
-    print(f"Setup Error: {e}")
+# Configuration ko v1 (Stable) par force karna
+genai.configure(api_key=API_KEY)
+
+# MODEL FIX: 'gemini-1.5-flash-latest' use karein jo har version par supported hai
+model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
 @app.route('/')
 def home():
-    return "Smile AI Server is LIVE and STABLE!"
+    return "Smile AI: System Stable & Live!"
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -28,19 +25,18 @@ def chat():
         data = request.json
         user_msg = data.get("message", "")
         
-        # Simple response generation
+        # Generation call
         response = model.generate_content(user_msg)
         
-        if response and response.text:
+        if response.text:
             return jsonify({"reply": response.text})
         else:
-            return jsonify({"reply": "AI ne jawab nahi diya, phir se puchein."})
+            return jsonify({"reply": "AI khamosh hai, dobara puchein."})
             
     except Exception as e:
-        error_str = str(e)
-        print(f"Chat Error: {error_str}")
-        # Agar abhi bhi v1beta bole, toh hum error message badal denge
-        return jsonify({"reply": f"Bhai, API mein issue hai: {error_str}"}), 500
+        print(f"Detailed Error: {e}")
+        # Agar abhi bhi error aaye toh ye direct dikhayega
+        return jsonify({"reply": f"Model Error: {str(e)}"}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
