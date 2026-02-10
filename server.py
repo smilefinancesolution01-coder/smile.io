@@ -6,35 +6,38 @@ import google.generativeai as genai
 app = Flask(__name__)
 CORS(app)
 
-# API KEY Setup
-API_KEY = "AIzaSyBP15xLes-NP6tc0fadkBRbJdcJ0QuoHdE"
-genai.configure(api_key=API_KEY)
+# NAYI KEY YAHAN HAI
+genai.configure(api_key="AIzaSyCJCmyILSlIl4gYA8-7cFcTtlL3_KvYYR4")
 
-# STABLE MODEL: Gemini-pro sabse zada compatible hai
-model = genai.GenerativeModel('gemini-pro')
+# Personal Financial Assistant Instructions
+instructions = (
+    "Aap Smile AI ho, ek professional financial assistant. "
+    "1. Keywords use karo. 2. Shopping ke liye Amazon.in links do. "
+    "3. Hamesha helpful aur mobile-friendly response do."
+)
+
+model = genai.GenerativeModel(
+    model_name='gemini-1.5-flash',
+    system_instruction=instructions
+)
 
 @app.route('/')
 def home():
-    return "Smile AI is LIVE and Ready!"
+    return "Smile AI is LIVE with New Key!"
 
 @app.route('/chat', methods=['POST'])
 def chat():
     try:
         data = request.json
         user_msg = data.get("message", "")
-        
-        # Simple generation call
-        response = model.generate_content(user_msg)
-        
-        if response.text:
-            return jsonify({"reply": response.text})
-        else:
-            return jsonify({"reply": "AI ne koi jawab nahi diya, phir se puchein."})
+        if not user_msg:
+            return jsonify({"reply": "Kuch toh likho!"}), 400
             
+        response = model.generate_content(user_msg)
+        return jsonify({"reply": response.text})
     except Exception as e:
-        print(f"Error: {str(e)}")
-        # Backup message agar phir bhi error aaye
-        return jsonify({"reply": "Bhai, API key ya model mein issue hai. Please check Google AI Studio."}), 500
+        print(f"Error: {e}")
+        return jsonify({"reply": f"Key Active ho rahi hai, 1 min ruko. Error: {str(e)}"}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
