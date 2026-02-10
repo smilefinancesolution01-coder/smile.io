@@ -6,25 +6,31 @@ import google.generativeai as genai
 app = Flask(__name__)
 CORS(app)
 
-# Apni Google API Key yahan dalo
-genai.configure(api_key="YOUR_GOOGLE_API_KEY")
+# Render ki settings se API key uthayega
+API_KEY = os.environ.get("GOOGLE_API_KEY")
+genai.configure(api_key=API_KEY)
 
-# Model setup - Gemini 1.5 Flash latest version
+# Gemini 1.5 Flash Model (Latest & Stable)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 @app.route('/chat', methods=['POST'])
 def chat():
     try:
         data = request.json
-        user_msg = data.get("message")
+        user_message = data.get("message")
         
-        # AI se response mangna
-        response = model.generate_content(user_msg)
+        if not user_message:
+            return jsonify({"reply": "Bhai, kuch likhoge tabhi toh bataunga!"}), 400
+
+        # AI Response generate karna
+        response = model.generate_content(user_message)
         
         return jsonify({"reply": response.text})
     except Exception as e:
         print(f"Error: {e}")
-        return jsonify({"reply": "Bhai, backend model connect nahi ho raha. API key check karein."}), 500
+        return jsonify({"reply": "Backend Error: Model connect nahi ho raha. Logs check karein."}), 500
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=10000)
+    # Render ke liye port 10000 zaroori hai
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
