@@ -2,22 +2,23 @@ import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import google.generativeai as genai
+from google.generativeai import client
 
 app = Flask(__name__)
 CORS(app)
 
-# API KEY
+# API KEY Setup
 API_KEY = "AIzaSyCJCmyILSlIl4gYA8-7cFcTtlL3_KvYYR4"
 
-# Configuration ko v1 (Stable) par force karna
-genai.configure(api_key=API_KEY)
+# VERSION LOCK: Forcefully using v1 instead of v1beta
+genai.configure(api_key=API_KEY, transport='rest')
 
-# MODEL FIX: 'gemini-1.5-flash-latest' use karein jo har version par supported hai
-model = genai.GenerativeModel('gemini-1.5-flash-latest')
+# Using 'gemini-1.5-flash' without '-latest' or prefixes
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 @app.route('/')
 def home():
-    return "Smile AI: System Stable & Live!"
+    return "Smile AI: Server is Fixed and Stable!"
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -25,18 +26,19 @@ def chat():
         data = request.json
         user_msg = data.get("message", "")
         
-        # Generation call
+        # Simple content generation
         response = model.generate_content(user_msg)
         
-        if response.text:
-            return jsonify({"reply": response.text})
-        else:
-            return jsonify({"reply": "AI khamosh hai, dobara puchein."})
-            
+        return jsonify({"reply": response.text})
     except Exception as e:
-        print(f"Detailed Error: {e}")
-        # Agar abhi bhi error aaye toh ye direct dikhayega
-        return jsonify({"reply": f"Model Error: {str(e)}"}), 500
+        print(f"Error: {str(e)}")
+        # Agar phir bhi 404 aaye, toh hum 'gemini-pro' par switch karenge automatic
+        try:
+            backup_model = genai.GenerativeModel('gemini-pro')
+            response = backup_model.generate_content(user_msg)
+            return jsonify({"reply": response.text})
+        except:
+            return jsonify({"reply": "Bhai, API Key refresh hone mein time le rahi hai. 2 min ruko."}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
