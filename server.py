@@ -1,50 +1,47 @@
 import os
 import json
+import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import vertexai
-from vertexai.generative_models import GenerativeModel
-from google.oauth2 import service_account
 
 app = Flask(__name__)
+CORS(app)
 
-# IS LINE KO DHAYAN SE DEKHO - Ye Vercel ko allow karega
-CORS(app, resources={r"/*": {"origins": "*"}})
-
-# Credentials Setup from Environment Variable
-creds_json = os.getenv("GOOGLE_CREDS")
-model = None
-
-if creds_json:
-    try:
-        creds_dict = json.loads(creds_json)
-        credentials = service_account.Credentials.from_service_account_info(creds_dict)
-        vertexai.init(project="smile-ai-486910", location="us-central1", credentials=credentials)
-        model = GenerativeModel("gemini-1.5-flash")
-    except Exception as e:
-        print(f"Vertex Init Error: {e}")
+# Render ke Environment Variable se credentials lena
+def get_access_token():
+    creds = json.loads(os.getenv("GOOGLE_CREDS"))
+    # Token nikalne ka simple logic (Standard API call ke liye)
+    return os.getenv("API_KEY") # Agar aapke paas API key hai toh wo best hai
 
 @app.route('/')
 def home():
-    return "Smile AI: Vertex AI Mode Active & CORS Open!"
+    return "Smile AI: Server is Fixed and Running!"
 
-@app.route('/chat', methods=['POST', 'OPTIONS'])
+@app.route('/chat', methods=['POST'])
 def chat():
-    # CORS pre-flight handling
-    if request.method == 'OPTIONS':
-        return jsonify({"status": "ok"}), 200
-        
     try:
         data = request.json
         user_msg = data.get("message", "")
         
-        if not model:
-            return jsonify({"reply": "System Error: Model not initialized. Check Render Env Variables."}), 500
+        # HUM WAPAS DIRECT API PAR AA RAHE HAIN PAR NAYE MODEL KE SAATH
+        # Kyunki Vertex AI setup Render par 'Status 1' de raha hai
+        API_KEY = "AIzaSyAZ0Wb-DfNIdDMitOWxrvtDjuKTgzwGca8"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
+        
+        payload = {
+            "contents": [{"parts": [{"text": user_msg}]}]
+        }
+        
+        response = requests.post(url, json=payload)
+        result = response.json()
+        
+        if "candidates" in result:
+            return jsonify({"reply": result['candidates'][0]['content']['parts'][0]['text']})
+        else:
+            return jsonify({"reply": "Google Error: " + str(result)}), 500
             
-        response = model.generate_content(user_msg)
-        return jsonify({"reply": response.text})
     except Exception as e:
-        return jsonify({"reply": f"Vertex Error: {str(e)}"}), 500
+        return jsonify({"reply": f"Server Error: {str(e)}"}), 500
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
