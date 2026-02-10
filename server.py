@@ -7,15 +7,10 @@ app = Flask(__name__)
 CORS(app)
 
 # Nayi API Key
-API_KEY = "AIzaSyCJCmyILSlIl4gYA8-7cFcTtlL3_KvYYR4"
-genai.configure(api_key=API_KEY)
-
-# STABLE MODEL CHOICE: Gemini-pro 404 error nahi deta
-model = genai.GenerativeModel('gemini-pro')
+genai.configure(api_key="AIzaSyCJCmyILSlIl4gYA8-7cFcTtlL3_KvYYR4")
 
 @app.route('/')
-def home():
-    return "Smile AI: Connection Successful!"
+def home(): return "Smile AI: Online"
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -23,19 +18,20 @@ def chat():
         data = request.json
         user_msg = data.get("message", "")
         
-        # Simple content generation
-        response = model.generate_content(user_msg)
+        # Sabse purana aur stable model use kar rahe hain jo 404 nahi deta
+        model = genai.GenerativeModel('gemini-pro') 
         
-        if response.text:
-            return jsonify({"reply": response.text})
-        else:
-            return jsonify({"reply": "AI ne jawab nahi diya, phir se try karein."})
-            
+        response = model.generate_content(user_msg)
+        return jsonify({"reply": response.text})
+        
     except Exception as e:
-        print(f"Error: {str(e)}")
-        # Agar phir bhi 404 aaye, toh iska matlab Google backend update ho raha hai
-        return jsonify({"reply": "Bhai, Google server thoda slow hai. 1 min ruk kar 'Hi' likho."}), 500
+        # Agar gemini-pro bhi fail ho, toh flash try karein
+        try:
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            response = model.generate_content(user_msg)
+            return jsonify({"reply": response.text})
+        except Exception as e2:
+            return jsonify({"reply": f"Google Error: {str(e2)}"}), 500
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
