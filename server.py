@@ -3,10 +3,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
+import google.generativeai as genai
 
 app = FastAPI()
 
-# 1. CORS Connection (Vercel ke liye zaroori hai)
+# CORS: Taki Vercel se connection bina kisi rukawat ke ho
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,42 +15,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- GEMINI AI SETUP ---
+API_KEY = "AIzaSyBP15xLes-NP6tc0fadkBRbJdcJ0QuoHdE"
+genai.configure(api_key=API_KEY)
+
+# Smile AI ki Personality set kar di hai
+model = genai.GenerativeModel('gemini-1.5-flash', 
+    system_instruction="Aap Smile AI hain, duniya ke sabse advanced assistant. Aapka accent friendly 'Bhai' wala hai. Aap users ki safety (Emergency), Finance (20 Lakh mission), aur Shopping mein help karte hain. Har sawal ka jawab details mein dein.")
+
 class ChatRequest(BaseModel):
     message: str
 
-# 2. Home Route (Check karne ke liye ki server zinda hai)
 @app.get("/")
 def home():
-    return {"status": "Smile AI Engine is Running", "vision": "October Goal 20 Lakh"}
+    return {"status": "Smile AI Brain is Online"}
 
-# 3. Main AI Logic
 @app.post("/chat")
-def chat(request: ChatRequest):
-    q = request.message.lower()
-    
-    # 🚨 EMERGENCY LOGIC (Women Safety)
-    if any(word in q for word in ["help", "police", "bachao", "emergency", "ambulance"]):
-        return {"reply": "EMERGENCY_ACTIVATE: Main aapki location track kar raha hoon aur Police (112) ko alert bhej raha hoon. Himmat rakhiye!"}
+async def chat(request: ChatRequest):
+    try:
+        # Gemini se response lena
+        response = model.generate_content(request.message)
+        return {"reply": response.text}
+    except Exception as e:
+        return {"reply": f"Bhai, dimaag mein thoda load hai. Check API or Render Logs. Error: {str(e)}"}
 
-    # 💰 FINANCE & ROJGAR (Target 20 Lakh)
-    elif any(word in q for word in ["loan", "paisa", "job", "paisa kamana", "finance"]):
-        return {"reply": "Smile Finance: Hum aapko sabse sasta loan aur online kamai ke raste dete hain. Kya aapko Business Loan chahiye ya Personal?"}
-
-    # 🛍️ AFFILIATE SHOPPING (XYZ Products)
-    elif any(word in q for word in ["buy", "amazon", "price", "mobile", "shoes", "kharidna"]):
-        item = q.replace("buy", "").replace("price", "").strip()
-        # Yahan aap apna Amazon/Flipkart affiliate link setup karenge
-        return {"reply": f"Smile AI ne aapke liye best deal dhoond li hai. Is link par click karke kharidye: https://www.amazon.in/s?k={item} (Affiliate Link Active)"}
-
-    # 🎵 ENTERTAINMENT (Music/Video)
-    elif any(word in q for word in ["gaana", "music", "video", "song"]):
-        return {"reply": "Bilkul! Main aapke liye entertainment portal khol raha hoon. Kya sunna chahenge?"}
-
-    # 🤖 GENERAL AI
-    else:
-        return {"reply": f"Smile AI: Main duniya ki har service de sakta hoon. Aapne '{request.message}' pucha, main isme expert hoon!"}
-
-# 4. Render Port Configuration (Iske bina Status 1 error aata hai)
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     uvicorn.run(app, host="0.0.0.0", port=port)
