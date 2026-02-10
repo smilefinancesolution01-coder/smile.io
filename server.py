@@ -1,45 +1,51 @@
 import os
-import json
 import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)
+# CORS ko pura open rakha hai taaki Vercel se connection fail na ho
+CORS(app, resources={r"/*": {"origins": "*"}})
 
-# Render ke Environment Variable se credentials lena
-def get_access_token():
-    creds = json.loads(os.getenv("GOOGLE_CREDS"))
-    # Token nikalne ka simple logic (Standard API call ke liye)
-    return os.getenv("API_KEY") # Agar aapke paas API key hai toh wo best hai
+# AAPKI EKDOM NAYI API KEY
+API_KEY = "AIzaSyAdOj2bPfxGfKDDcrNyjGVZ7QMVpYj0XLI"
+
+# Gemini 1.5 Flash ka Direct Endpoint
+GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
 
 @app.route('/')
 def home():
-    return "Smile AI: Server is Fixed and Running!"
+    return "Smile AI: NEW KEY ENGINE IS LIVE!"
 
 @app.route('/chat', methods=['POST'])
 def chat():
     try:
-        data = request.json
-        user_msg = data.get("message", "")
-        
-        # HUM WAPAS DIRECT API PAR AA RAHE HAIN PAR NAYE MODEL KE SAATH
-        # Kyunki Vertex AI setup Render par 'Status 1' de raha hai
-        API_KEY = "AIzaSyAZ0Wb-DfNIdDMitOWxrvtDjuKTgzwGca8"
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
-        
+        user_data = request.json
+        user_text = user_data.get("message", "")
+
+        if not user_text:
+            return jsonify({"reply": "Bhai, kuch message toh likho!"}), 400
+
+        # Google Gemini Format
         payload = {
-            "contents": [{"parts": [{"text": user_msg}]}]
+            "contents": [{
+                "parts": [{"text": user_text}]
+            }]
         }
         
-        response = requests.post(url, json=payload)
+        headers = {'Content-Type': 'application/json'}
+        response = requests.post(GEMINI_URL, json=payload, headers=headers)
         result = response.json()
-        
+
+        # Reply nikalne ki koshish
         if "candidates" in result:
-            return jsonify({"reply": result['candidates'][0]['content']['parts'][0]['text']})
+            ai_reply = result['candidates'][0]['content']['parts'][0]['text']
+            return jsonify({"reply": ai_reply})
         else:
-            return jsonify({"reply": "Google Error: " + str(result)}), 500
-            
+            # Agar koi error aaye toh detail dikhayega
+            error_msg = result.get("error", {}).get("message", "Unknown Google Error")
+            return jsonify({"reply": f"Google Error: {error_msg}"}), 500
+
     except Exception as e:
         return jsonify({"reply": f"Server Error: {str(e)}"}), 500
 
