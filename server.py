@@ -1,49 +1,41 @@
 import os
-import requests
+import json
+import base64
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import vertexai
+from vertexai.generative_models import GenerativeModel
+from google.oauth2 import service_account
 
 app = Flask(__name__)
-# CORS fix for Vercel connection
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app)
 
-# AAPKI NAYI KEY
-API_KEY = "AIzaSyAZ0Wb-DfNIdDMitOWxrvtDjuKTgzwGca8"
-
-# Is baar hum v1beta ke saath gemini-1.0-pro use kar rahe hain
-# Ye combo un keys ke liye hai jo 1.5 flash nahi dhoond pa rahi
-GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key={API_KEY}"
+# Render se JSON credentials uthana
+if os.getenv("GOOGLE_CREDS"):
+    creds_dict = json.loads(os.getenv("GOOGLE_CREDS"))
+    credentials = service_account.Credentials.from_service_account_info(creds_dict)
+    
+    # Vertex AI Initialize
+    vertexai.init(
+        project="smile-ai-486910", 
+        location="us-central1", 
+        credentials=credentials
+    )
+    model = GenerativeModel("gemini-1.5-flash")
 
 @app.route('/')
 def home():
-    return "Smile AI: RAMBAN v4 (Legacy Stable) is LIVE!"
+    return "Smile AI: Vertex AI (LEGENDARY MODE) is LIVE!"
 
 @app.route('/chat', methods=['POST'])
 def chat():
     try:
-        user_data = request.json
-        user_text = user_data.get("message", "")
-
-        payload = {
-            "contents": [{
-                "parts": [{"text": user_text}]
-            }]
-        }
-        
-        headers = {'Content-Type': 'application/json'}
-        response = requests.post(GEMINI_URL, json=payload, headers=headers)
-        result = response.json()
-
-        # Success check
-        if "candidates" in result:
-            ai_reply = result['candidates'][0]['content']['parts'][0]['text']
-            return jsonify({"reply": ai_reply})
-        else:
-            # Full Debugging: Agar ab bhi error aaye toh poora message dikhega
-            return jsonify({"reply": f"Google Response: {str(result)}"}), 500
-
+        data = request.json
+        user_msg = data.get("message", "")
+        response = model.generate_content(user_msg)
+        return jsonify({"reply": response.text})
     except Exception as e:
-        return jsonify({"reply": f"System Error: {str(e)}"}), 500
+        return jsonify({"reply": f"Vertex Error: {str(e)}"}), 500
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
