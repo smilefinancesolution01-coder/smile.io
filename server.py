@@ -6,16 +6,15 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# AAPKI KEY
-API_KEY = "AIzaSyCJCmyILSlIl4gYA8-7cFcTtlL3_KvYYR4"
+# NAYI API KEY JO AAPNE ABHI DI HAI
+API_KEY = "AIzaSyAZ0Wb-DfNIdDMitOWxrvtDjuKTgzwGca8"
 
-# FINAL UPDATED URL (v1 version + flash model)
-# Ye combo sabse zyada stable hai free accounts ke liye
+# STABLE ENDPOINT: v1 (No beta) aur model ka sahi naam
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={API_KEY}"
 
 @app.route('/')
 def home():
-    return "Smile AI: FINAL STABLE VERSION IS LIVE!"
+    return "Smile AI: RAMBAN v3 (Stable) is LIVE!"
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -23,7 +22,7 @@ def chat():
         user_data = request.json
         user_text = user_data.get("message", "")
 
-        # Payload Structure for v1
+        # Correct JSON format for Gemini v1
         payload = {
             "contents": [{
                 "parts": [{"text": user_text}]
@@ -34,13 +33,13 @@ def chat():
         response = requests.post(GEMINI_URL, json=payload, headers=headers)
         result = response.json()
 
-        # Check for success
+        # Reply extraction
         if "candidates" in result:
             ai_reply = result['candidates'][0]['content']['parts'][0]['text']
             return jsonify({"reply": ai_reply})
         else:
-            # Full error reporting for debugging
-            return jsonify({"reply": f"Google Update: {result.get('error', {}).get('message', 'Check API Key Permission')}"}), 500
+            # Full error tracking agar ab bhi fail ho
+            return jsonify({"reply": f"Google Update: {str(result)}"}), 500
 
     except Exception as e:
         return jsonify({"reply": f"System Error: {str(e)}"}), 500
