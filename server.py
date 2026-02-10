@@ -10,37 +10,31 @@ CORS(app)
 API_KEY = "AIzaSyBP15xLes-NP6tc0fadkBRbJdcJ0QuoHdE"
 genai.configure(api_key=API_KEY)
 
-# YAHAN CHANGE HAI: Stable model configuration
-generation_config = {
-  "temperature": 0.9,
-  "top_p": 1,
-  "top_k": 1,
-  "max_output_tokens": 2048,
-}
-
-# Model initialization without 'models/' prefix
-model = genai.GenerativeModel(
-  model_name="gemini-1.5-flash",
-  generation_config=generation_config
-)
+# STABLE MODEL: Gemini-pro sabse zada compatible hai
+model = genai.GenerativeModel('gemini-pro')
 
 @app.route('/')
 def home():
-    return "<h1>Smile AI Server is LIVE!</h1>"
+    return "Smile AI is LIVE and Ready!"
 
 @app.route('/chat', methods=['POST'])
 def chat():
     try:
         data = request.json
-        user_msg = data.get("message")
+        user_msg = data.get("message", "")
         
-        # Seedha content generate karna (v1 version par)
+        # Simple generation call
         response = model.generate_content(user_msg)
         
-        return jsonify({"reply": response.text})
+        if response.text:
+            return jsonify({"reply": response.text})
+        else:
+            return jsonify({"reply": "AI ne koi jawab nahi diya, phir se puchein."})
+            
     except Exception as e:
-        print(f"Detailed Error: {e}")
-        return jsonify({"reply": f"Bhai, connectivity issue hai. Details: {str(e)}"}), 500
+        print(f"Error: {str(e)}")
+        # Backup message agar phir bhi error aaye
+        return jsonify({"reply": "Bhai, API key ya model mein issue hai. Please check Google AI Studio."}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
