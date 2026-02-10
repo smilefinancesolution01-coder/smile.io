@@ -1,6 +1,5 @@
 import os
 import json
-import base64
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import vertexai
@@ -10,22 +9,17 @@ from google.oauth2 import service_account
 app = Flask(__name__)
 CORS(app)
 
-# Render se JSON credentials uthana
-if os.getenv("GOOGLE_CREDS"):
-    creds_dict = json.loads(os.getenv("GOOGLE_CREDS"))
+# Credentials Setup
+creds_json = os.getenv("GOOGLE_CREDS")
+if creds_json:
+    creds_dict = json.loads(creds_json)
     credentials = service_account.Credentials.from_service_account_info(creds_dict)
-    
-    # Vertex AI Initialize
-    vertexai.init(
-        project="smile-ai-486910", 
-        location="us-central1", 
-        credentials=credentials
-    )
+    vertexai.init(project="smile-ai-486910", location="us-central1", credentials=credentials)
     model = GenerativeModel("gemini-1.5-flash")
 
 @app.route('/')
 def home():
-    return "Smile AI: Vertex AI (LEGENDARY MODE) is LIVE!"
+    return "Smile AI: Vertex AI Mode Active!"
 
 @app.route('/chat', methods=['POST'])
 def chat():
