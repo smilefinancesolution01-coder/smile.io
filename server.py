@@ -1,37 +1,53 @@
 import os
+import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import google.generativeai as genai
 
 app = Flask(__name__)
 CORS(app)
 
-# Nayi API Key
-genai.configure(api_key="AIzaSyCJCmyILSlIl4gYA8-7cFcTtlL3_KvYYR4")
+# AAPKI NAYI KEY
+API_KEY = "AIzaSyCJCmyILSlIl4gYA8-7cFcTtlL3_KvYYR4"
+
+# GOOGLE STABLE ENDPOINT (v1 - No beta)
+# Is raaste mein 404 aane ka chance zero hai
+GEMINI_URL = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={API_KEY}"
 
 @app.route('/')
-def home(): return "Smile AI: Online"
+def home():
+    return "Smile AI: RAMBAN Server is LIVE!"
 
 @app.route('/chat', methods=['POST'])
 def chat():
     try:
-        data = request.json
-        user_msg = data.get("message", "")
+        user_data = request.json
+        user_text = user_data.get("message", "")
+
+        # Direct JSON Payload for Google
+        payload = {
+            "contents": [{
+                "parts": [{"text": user_text}]
+            }]
+        }
         
-        # Sabse purana aur stable model use kar rahe hain jo 404 nahi deta
-        model = genai.GenerativeModel('gemini-pro') 
+        headers = {'Content-Type': 'application/json'}
         
-        response = model.generate_content(user_msg)
-        return jsonify({"reply": response.text})
-        
+        # Seedha Google ko call lagana
+        response = requests.post(GEMINI_URL, json=payload, headers=headers)
+        result = response.json()
+
+        # Jawab nikalna
+        if "candidates" in result:
+            ai_reply = result['candidates'][0]['content']['parts'][0]['text']
+            return jsonify({"reply": ai_reply})
+        else:
+            # Agar Google koi error de
+            error_msg = result.get("error", {}).get("message", "Google Busy Hai")
+            return jsonify({"reply": f"Google Error: {error_msg}"}), 500
+
     except Exception as e:
-        # Agar gemini-pro bhi fail ho, toh flash try karein
-        try:
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            response = model.generate_content(user_msg)
-            return jsonify({"reply": response.text})
-        except Exception as e2:
-            return jsonify({"reply": f"Google Error: {str(e2)}"}), 500
+        return jsonify({"reply": f"System Error: {str(e)}"}), 500
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
