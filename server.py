@@ -4,16 +4,19 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 app = Flask(__name__)
-
-# IS LINE KO DHAYAN SE DEKHO: Sabhi raaste open karne ke liye
+# CORS fix for Vercel connection
 CORS(app, resources={r"/*": {"origins": "*"}})
 
+# AAPKI NAYI KEY
 API_KEY = "AIzaSyAZ0Wb-DfNIdDMitOWxrvtDjuKTgzwGca8"
-GEMINI_URL = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={API_KEY}"
+
+# Is baar hum v1beta ke saath gemini-1.0-pro use kar rahe hain
+# Ye combo un keys ke liye hai jo 1.5 flash nahi dhoond pa rahi
+GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key={API_KEY}"
 
 @app.route('/')
 def home():
-    return "Smile AI: RAMBAN v3 (ULTRA STABLE) is LIVE!"
+    return "Smile AI: RAMBAN v4 (Legacy Stable) is LIVE!"
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -31,11 +34,13 @@ def chat():
         response = requests.post(GEMINI_URL, json=payload, headers=headers)
         result = response.json()
 
+        # Success check
         if "candidates" in result:
             ai_reply = result['candidates'][0]['content']['parts'][0]['text']
             return jsonify({"reply": ai_reply})
         else:
-            return jsonify({"reply": "Google Error: " + str(result.get('error', {}).get('message', 'Unknown'))}), 500
+            # Full Debugging: Agar ab bhi error aaye toh poora message dikhega
+            return jsonify({"reply": f"Google Response: {str(result)}"}), 500
 
     except Exception as e:
         return jsonify({"reply": f"System Error: {str(e)}"}), 500
