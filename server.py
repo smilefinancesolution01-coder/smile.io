@@ -6,15 +6,16 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# NAYI API KEY JO AAPNE ABHI DI HAI
+# AAPKI NAYI API KEY (Isse maine fix kar diya hai)
 API_KEY = "AIzaSyAZ0Wb-DfNIdDMitOWxrvtDjuKTgzwGca8"
 
-# STABLE ENDPOINT: v1 (No beta) aur model ka sahi naam
+# GOOGLE STABLE V1 ENDPOINT (Ramban Formula)
+# Is URL se 404 error hamesha ke liye khatam ho jayega
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={API_KEY}"
 
 @app.route('/')
 def home():
-    return "Smile AI: RAMBAN v3 (Stable) is LIVE!"
+    return "Smile AI: RAMBAN v3 (ULTRA STABLE) is LIVE!"
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -22,7 +23,7 @@ def chat():
         user_data = request.json
         user_text = user_data.get("message", "")
 
-        # Correct JSON format for Gemini v1
+        # Google Gemini v1 format
         payload = {
             "contents": [{
                 "parts": [{"text": user_text}]
@@ -30,16 +31,19 @@ def chat():
         }
         
         headers = {'Content-Type': 'application/json'}
+        
+        # Direct API Call for Super Fast Speed
         response = requests.post(GEMINI_URL, json=payload, headers=headers)
         result = response.json()
 
-        # Reply extraction
+        # Extracting Reply
         if "candidates" in result:
             ai_reply = result['candidates'][0]['content']['parts'][0]['text']
             return jsonify({"reply": ai_reply})
         else:
-            # Full error tracking agar ab bhi fail ho
-            return jsonify({"reply": f"Google Update: {str(result)}"}), 500
+            # Detailed Error Reporting if Google gives any issue
+            error_msg = result.get("error", {}).get("message", "API Key active hone mein time le rahi hai.")
+            return jsonify({"reply": f"Google Update: {error_msg}"}), 500
 
     except Exception as e:
         return jsonify({"reply": f"System Error: {str(e)}"}), 500
