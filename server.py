@@ -1,44 +1,30 @@
 import os
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import uvicorn
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 import google.generativeai as genai
 
-app = FastAPI()
+app = Flask(__name__)
+CORS(app)
 
-# CORS: Taki Vercel se connection bina kisi rukawat ke ho
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Apni Google API Key yahan dalo
+genai.configure(api_key="YOUR_GOOGLE_API_KEY")
 
-# --- GEMINI AI SETUP ---
-API_KEY = "AIzaSyBP15xLes-NP6tc0fadkBRbJdcJ0QuoHdE"
-genai.configure(api_key=API_KEY)
+# Model setup - Gemini 1.5 Flash latest version
+model = genai.GenerativeModel('gemini-1.5-flash')
 
-# Smile AI ki Personality set kar di hai
-model = genai.GenerativeModel('gemini-1.5-flash', 
-    system_instruction="Aap Smile AI hain, duniya ke sabse advanced assistant. Aapka accent friendly 'Bhai' wala hai. Aap users ki safety (Emergency), Finance (20 Lakh mission), aur Shopping mein help karte hain. Har sawal ka jawab details mein dein.")
-
-class ChatRequest(BaseModel):
-    message: str
-
-@app.get("/")
-def home():
-    return {"status": "Smile AI Brain is Online"}
-
-@app.post("/chat")
-async def chat(request: ChatRequest):
+@app.route('/chat', methods=['POST'])
+def chat():
     try:
-        # Gemini se response lena
-        response = model.generate_content(request.message)
-        return {"reply": response.text}
+        data = request.json
+        user_msg = data.get("message")
+        
+        # AI se response mangna
+        response = model.generate_content(user_msg)
+        
+        return jsonify({"reply": response.text})
     except Exception as e:
-        return {"reply": f"Bhai, dimaag mein thoda load hai. Check API or Render Logs. Error: {str(e)}"}
+        print(f"Error: {e}")
+        return jsonify({"reply": "Bhai, backend model connect nahi ho raha. API key check karein."}), 500
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    app.run(host='0.0.0.0', port=10000)
